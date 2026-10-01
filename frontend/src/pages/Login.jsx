@@ -10,6 +10,8 @@ export default function Login() {
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  const [showPassword, setShowPassword] = useState(false); 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -160,26 +162,64 @@ export default function Login() {
             </div>
 
             <div className="auth-field">
-              <label htmlFor="login-password">
-                Password
-              </label>
+  <label htmlFor="login-password">
+    Password
+  </label>
 
-              <div className="auth-input-wrapper">
-                <span className="auth-input-icon">●</span>
+  <div className="auth-input-wrapper password-input-wrapper">
+    <span className="auth-input-icon">●</span>
 
-                <input
-                  id="login-password"
-                  type="password"
-                  value={password}
-                  onChange={(e) =>
-                    setPassword(e.target.value)
-                  }
-                  placeholder="Enter your password"
-                  autoComplete="current-password"
-                  required
-                />
-              </div>
-            </div>
+    <input
+      id="login-password"
+      type={showPassword ? "text" : "password"}
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+      placeholder="Enter your password"
+      autoComplete="current-password"
+      required
+    />
+
+    <button
+      type="button"
+      className="password-toggle"
+      onClick={() => setShowPassword((prev) => !prev)}
+      aria-label={showPassword ? "Hide password" : "Show password"}
+      title={showPassword ? "Hide password" : "Show password"}
+    >
+      {showPassword ? (
+        <svg
+          viewBox="0 0 24 24"
+          width="20"
+          height="20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M3 3l18 18" />
+          <path d="M10.58 10.58a2 2 0 0 0 2.83 2.83" />
+          <path d="M9.88 4.24A9.77 9.77 0 0 1 12 4c5 0 9.27 3.11 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+          <path d="M6.61 6.61C4.62 7.89 3.1 9.74 2 12c1.73 4.89 6 8 10 8a9.77 9.77 0 0 0 2.12-.24" />
+        </svg>
+      ) : (
+        <svg
+          viewBox="0 0 24 24"
+          width="20"
+          height="20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      )}
+    </button>
+  </div>
+</div>
 
             {error && (
               <div className="premium-auth-error">

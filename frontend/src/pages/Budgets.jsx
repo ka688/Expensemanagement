@@ -5,6 +5,7 @@ import {
 } from "react";
 
 import api from "../services/api";
+import { SpeechRecognition } from "@capacitor-community/speech-recognition";
 
 const categories = [
   "Food",
@@ -102,6 +103,18 @@ export default function Budgets() {
   const [expenseSaving, setExpenseSaving] =
     useState(false);
 
+  const [isListening, setIsListening] =
+    useState(false);
+
+  const [voiceText, setVoiceText] =
+    useState("");
+
+  const [budgetVoiceListening, setBudgetVoiceListening] =
+    useState(false);
+
+  const [budgetVoiceText, setBudgetVoiceText] =
+    useState("");
+
   const money = (value) =>
     new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -167,7 +180,7 @@ export default function Budgets() {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Failed to load budgets"
+        "Failed to load budgets"
       );
     } finally {
       setLoading(false);
@@ -188,6 +201,57 @@ export default function Budgets() {
       [event.target.name]:
         event.target.value,
     }));
+  };
+  const handleBudgetVoiceInput = async () => {
+    try {
+      setError("");
+      setBudgetVoiceText("");
+
+      const permission =
+        await SpeechRecognition.requestPermissions();
+
+      if (permission.speechRecognition !== "granted") {
+        setError(
+          "Microphone permission is required for voice input."
+        );
+        return;
+      }
+
+      setBudgetVoiceListening(true);
+
+      const result = await SpeechRecognition.start({
+        language: "en-IN",
+        maxResults: 1,
+        prompt:
+          "Say your budget, for example: create a food budget of 5000 rupees for September 2026",
+        partialResults: false,
+        popup: true,
+      });
+
+      const spokenText = result.matches?.[0] || "";
+
+      setBudgetVoiceText(spokenText);
+
+      if (spokenText) {
+        const parsed = parseBudgetVoice(spokenText);
+
+        setForm((prev) => ({
+          ...prev,
+          name: parsed.name,
+          category: parsed.category,
+          amount: parsed.amount,
+          month: parsed.month,
+        }));
+      }
+    } catch (error) {
+      console.error("Budget voice input error:", error);
+
+      setError(
+        "Could not understand your budget. Please try again."
+      );
+    } finally {
+      setBudgetVoiceListening(false);
+    }
   };
 
   const resetForm = () => {
@@ -242,7 +306,7 @@ export default function Budgets() {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Failed to save budget"
+        "Failed to save budget"
       );
     } finally {
       setSaving(false);
@@ -283,7 +347,7 @@ export default function Budgets() {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Failed to delete budget"
+        "Failed to delete budget"
       );
     }
   };
@@ -333,6 +397,310 @@ export default function Budgets() {
       [event.target.name]:
         event.target.value,
     }));
+  };
+  const parseBudgetVoiceExpense = (text) => {
+    const lowerText = text.toLowerCase().trim();
+
+    // Find amount
+    const amountMatch = lowerText.match(
+      /(?:₹|rs\.?|rupees?|inr)?\s*(\d+(?:\.\d+)?)/
+    );
+
+    const amount = amountMatch
+      ? Number(amountMatch[1])
+      : "";
+
+    // Detect category
+    let category = "Other";
+
+    if (
+      /\b(food|groceries|grocery|restaurant|lunch|dinner|breakfast)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Food";
+    } else if (
+      /\b(shopping|clothes|clothing|dress|amazon|flipkart)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Shopping";
+    } else if (
+      /\b(uber|ola|taxi|cab|bus|train|metro|petrol|fuel|transport)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Transport";
+    } else if (
+      /\b(bill|electricity|water|rent|recharge|internet|wifi)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Bills";
+    } else if (
+      /\b(movie|movies|netflix|game|games|entertainment)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Entertainment";
+    } else if (
+      /\b(hospital|doctor|medicine|medical|health)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Health";
+    } else if (
+      /\b(course|courses|school|college|education|books)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Education";
+    } else if (
+      /\b(travel|hotel|flight|trip|vacation)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Travel";
+    } else if (
+      /\b(business|client)\b/i.test(lowerText)
+    ) {
+      category = "Business";
+    }
+
+    // Extract transaction name
+    let title = "";
+
+    const nameMatch = lowerText.match(
+      /\b(?:for|on|at)\s+(.+?)(?:\s+(?:today|yesterday|tomorrow))?$/i
+    );
+
+    if (nameMatch) {
+      title = nameMatch[1].trim();
+    }
+
+    // Fallback if "for", "on", or "at" wasn't found
+    if (!title) {
+      title = lowerText
+        .replace(
+          /(?:₹|rs\.?|rupees?|inr)?\s*\d+(?:\.\d+)?/gi,
+          ""
+        )
+        .replace(
+          /\b(spent|spend|paid|pay|bought|buy|for|on|at)\b/gi,
+          ""
+        )
+        .trim();
+    }
+
+    // Clean title
+    title = title
+      .replace(/[.,!?]/g, "")
+      .trim();
+
+    // Capitalize first letter
+    if (title) {
+      title =
+        title.charAt(0).toUpperCase() +
+        title.slice(1);
+    }
+
+    return {
+      title: title || "Budget Expense",
+      amount,
+      category,
+    };
+  };
+
+
+  const parseBudgetVoice = (text) => {
+    const lowerText = text.toLowerCase().trim();
+
+    // Extract amount
+    const amountMatch = lowerText.match(
+      /(?:₹|rs\.?|rupees?|inr)?\s*(\d+(?:\.\d+)?)/
+    );
+
+    const amount = amountMatch
+      ? Number(amountMatch[1])
+      : "";
+
+    // Detect category
+    let category = "Other";
+
+    if (
+      /\b(food|groceries|grocery|restaurant|lunch|dinner|breakfast)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Food";
+    } else if (
+      /\b(shopping|clothes|clothing|dress|amazon|flipkart)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Shopping";
+    } else if (
+      /\b(uber|ola|taxi|cab|bus|train|metro|petrol|fuel|transport)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Transport";
+    } else if (
+      /\b(bill|electricity|water|rent|recharge|internet|wifi)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Bills";
+    } else if (
+      /\b(movie|movies|netflix|game|games|entertainment)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Entertainment";
+    } else if (
+      /\b(hospital|doctor|medicine|medical|health)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Health";
+    } else if (
+      /\b(course|courses|school|college|education|books)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Education";
+    } else if (
+      /\b(travel|hotel|flight|trip|vacation)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Travel";
+    } else if (
+      /\b(business|client)\b/i.test(lowerText)
+    ) {
+      category = "Business";
+    }
+
+    // Detect month
+    const monthNames = [
+      "january",
+      "february",
+      "march",
+      "april",
+      "may",
+      "june",
+      "july",
+      "august",
+      "september",
+      "october",
+      "november",
+      "december",
+    ];
+
+    let month = form.month;
+
+    const monthMatch = lowerText.match(
+      /\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})\b/i
+    );
+
+    if (monthMatch) {
+      const monthIndex =
+        monthNames.indexOf(monthMatch[1].toLowerCase()) + 1;
+
+      month = `${monthMatch[2]}-${String(monthIndex).padStart(2, "0")}`;
+    }
+
+    // Detect budget name
+    let name = "";
+
+    const nameMatch = lowerText.match(
+      /\b(?:create|make|set)\s+(?:a\s+)?(.+?)\s+budget\b/i
+    );
+
+    if (nameMatch) {
+      name = nameMatch[1]
+        .replace(/\b(food|shopping|transport|bills|entertainment|health|education|travel|business)\b/gi, "")
+        .trim();
+    }
+
+    if (!name) {
+      name = `${category} Budget`;
+    } else {
+      name =
+        name.charAt(0).toUpperCase() +
+        name.slice(1) +
+        " Budget";
+    }
+
+    return {
+      name,
+      category,
+      amount,
+      month,
+    };
+  };
+
+
+  const handleCreateBudgetVoiceInput = async () => {
+    try {
+      setError("");
+
+      const permission =
+        await SpeechRecognition.requestPermissions();
+
+      if (
+        permission.speechRecognition !==
+        "granted"
+      ) {
+        setError(
+          "Microphone permission is required for voice input."
+        );
+        return;
+      }
+
+      setIsListening(true);
+
+      const result =
+        await SpeechRecognition.start({
+          language: "en-IN",
+          maxResults: 1,
+          prompt:
+            "Say your budget expense, for example: Paid 120 rupees for Uber",
+          partialResults: false,
+          popup: true,
+        });
+
+      const spokenText =
+        result.matches?.[0] || "";
+
+      setVoiceText(spokenText);
+
+      if (spokenText) {
+        const parsed =
+          parseBudgetVoiceExpense(
+            spokenText
+          );
+
+        setExpenseForm((current) => ({
+          ...current,
+          title: parsed.title,
+          amount: parsed.amount,
+          category: parsed.category,
+          description: spokenText,
+        }));
+      }
+    } catch (error) {
+      console.error(
+        "Budget voice input error:",
+        error
+      );
+
+      setError(
+        "Could not understand your voice. Please try again."
+      );
+    } finally {
+      setIsListening(false);
+    }
   };
 
   const submitQuickExpense = async (
@@ -399,7 +767,7 @@ export default function Budgets() {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Failed to add expense"
+        "Failed to add expense"
       );
     } finally {
       setExpenseSaving(false);
@@ -532,11 +900,10 @@ export default function Budgets() {
         </div>
 
         <div
-          className={`budget-overview-card ${
-            remaining < 0
-              ? "budget-card-red"
-              : "budget-card-green"
-          }`}
+          className={`budget-overview-card ${remaining < 0
+            ? "budget-card-red"
+            : "budget-card-green"
+            }`}
         >
           <div className="budget-overview-top">
             <div className="budget-overview-icon">
@@ -638,11 +1005,10 @@ export default function Budgets() {
         ========================= */}
 
         <div
-          className={`budget-builder ${
-            editingId
-              ? "budget-builder-editing"
-              : ""
-          }`}
+          className={`budget-builder ${editingId
+            ? "budget-builder-editing"
+            : ""
+            }`}
         >
           <div className="budget-builder-glow" />
 
@@ -673,6 +1039,40 @@ export default function Budgets() {
           </div>
 
           <form onSubmit={submit}>
+            <div className="budget-create-voice-box">
+              <button
+                type="button"
+                className={`budget-create-voice-button ${budgetVoiceListening ? "listening" : ""
+                  }`}
+                onClick={handleBudgetVoiceInput}
+                disabled={budgetVoiceListening || saving}
+              >
+                <span className="budget-create-voice-icon">
+                  {budgetVoiceListening ? "🔴" : "🎤"}
+                </span>
+
+                <span>
+                  <strong>
+                    {budgetVoiceListening
+                      ? "Listening..."
+                      : "Create budget with your voice"}
+                  </strong>
+
+                  <small>
+                    {budgetVoiceListening
+                      ? "Say your budget details"
+                      : 'Try: "Create a food budget of 5000 rupees for September 2026"'}
+                  </small>
+                </span>
+              </button>
+
+              {budgetVoiceText && (
+                <div className="budget-create-voice-result">
+                  <span>Heard:</span> {budgetVoiceText}
+                </div>
+              )}
+            </div>
+            
             <div className="premium-form-grid">
 
               <div className="premium-field premium-field-wide">
@@ -850,7 +1250,7 @@ export default function Budgets() {
               )}
             </div>
           ) : data.budgets
-              .length === 0 ? (
+            .length === 0 ? (
             <div className="premium-empty-state">
               <div className="empty-orbit">
                 <div>
@@ -911,18 +1311,16 @@ export default function Budgets() {
 
                   const icon =
                     categoryIcons[
-                      budget.category
+                    budget.category
                     ] || "✨";
 
                   return (
                     <article
-                      className={`premium-budget-card ${
-                        budget.status || ""
-                      } ${
-                        isExceeded
+                      className={`premium-budget-card ${budget.status || ""
+                        } ${isExceeded
                           ? "budget-over-limit"
                           : ""
-                      }`}
+                        }`}
                       key={budget._id}
                     >
 
@@ -979,13 +1377,13 @@ export default function Budgets() {
                           >
                             {isExceeded
                               ? `${money(
-                                  Math.abs(
-                                    budget.remaining
-                                  )
-                                )} over`
-                              : `${money(
+                                Math.abs(
                                   budget.remaining
-                                )} left`}
+                                )
+                              )} over`
+                              : `${money(
+                                budget.remaining
+                              )} left`}
                           </span>
                         </div>
 
@@ -1017,7 +1415,7 @@ export default function Budgets() {
                           {isExceeded
                             ? "Over budget"
                             : percentage >=
-                                80
+                              80
                               ? "Near limit"
                               : "On track"}
                         </div>
@@ -1096,7 +1494,7 @@ export default function Budgets() {
                 <div className="modal-budget-icon">
                   {
                     categoryIcons[
-                      selectedBudget.category
+                    selectedBudget.category
                     ] || "✨"
                   }
                 </div>
@@ -1156,7 +1554,7 @@ export default function Budgets() {
                   <strong
                     className={
                       selectedBudget.remaining <
-                      0
+                        0
                         ? "expense-text"
                         : ""
                     }
@@ -1195,6 +1593,39 @@ export default function Budgets() {
                         required
                       />
                     </div>
+                  </div>
+                  <div className="budget-voice-expense-box">
+                    <button
+                      type="button"
+                      className={`budget-voice-expense-button ${isListening ? "listening" : ""
+                        }`}
+                      onClick={handleCreateBudgetVoiceInput}
+                      disabled={isListening || expenseSaving}
+                    >
+                      <span className="budget-voice-icon">
+                        {isListening ? "🔴" : "🎤"}
+                      </span>
+
+                      <span>
+                        <strong>
+                          {isListening
+                            ? "Listening..."
+                            : "Add with your voice"}
+                        </strong>
+
+                        <small>
+                          {isListening
+                            ? "Say your budget expense"
+                            : 'Try: "Paid ₹120 for Uber"'}
+                        </small>
+                      </span>
+                    </button>
+
+                    {voiceText && (
+                      <div className="budget-voice-result">
+                        <span>Heard:</span> {voiceText}
+                      </div>
+                    )}
                   </div>
 
                   <div className="premium-field">

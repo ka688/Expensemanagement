@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { SpeechRecognition } from "@capacitor-community/speech-recognition";
 
 const categories = [
   "Food",
@@ -44,6 +45,185 @@ export default function AddExpense() {
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [isListening, setIsListening] = useState(false);
+  const [voiceText, setVoiceText] = useState("");
+
+  const parseVoiceExpense = (text) => {
+  const lowerText = text.toLowerCase().trim();
+
+  // Find amount
+  const amountMatch = lowerText.match(
+    /(?:₹|rs\.?|rupees?|inr)?\s*(\d+(?:\.\d+)?)/
+  );
+
+  const amount = amountMatch
+    ? Number(amountMatch[1])
+    : "";
+
+  // Detect income
+  const isIncome =
+    /\b(received|earned|got paid|salary|income|credited)\b/i.test(
+      lowerText
+    );
+
+  // Detect category
+  let category = "Other";
+
+  if (
+    /\b(food|groceries|grocery|restaurant|lunch|dinner|breakfast)\b/i.test(
+      lowerText
+    )
+  ) {
+    category = "Food";
+  } else if (
+    /\b(shopping|clothes|clothing|dress|amazon|flipkart)\b/i.test(
+      lowerText
+    )
+  ) {
+    category = "Shopping";
+  } else if (
+    /\b(uber|ola|taxi|cab|bus|train|metro|petrol|fuel|transport)\b/i.test(
+      lowerText
+    )
+  ) {
+    category = "Transport";
+  } else if (
+    /\b(bill|electricity|water|rent|recharge|internet|wifi)\b/i.test(
+      lowerText
+    )
+  ) {
+    category = "Bills";
+  } else if (
+    /\b(movie|movies|netflix|game|games|entertainment)\b/i.test(
+      lowerText
+    )
+  ) {
+    category = "Entertainment";
+  } else if (
+    /\b(hospital|doctor|medicine|medical|health)\b/i.test(
+      lowerText
+    )
+  ) {
+    category = "Health";
+  } else if (
+    /\b(course|courses|school|college|education|books)\b/i.test(
+      lowerText
+    )
+  ) {
+    category = "Education";
+  } else if (
+    /\b(travel|hotel|flight|trip|vacation)\b/i.test(
+      lowerText
+    )
+  ) {
+    category = "Travel";
+  } else if (
+    /\b(salary|income|paycheck|earned)\b/i.test(
+      lowerText
+    )
+  ) {
+    category = "Salary";
+  } else if (
+    /\b(business|client)\b/i.test(lowerText)
+  ) {
+    category = "Business";
+  }
+
+  // Extract transaction name
+  let title = "";
+
+  const nameMatch = lowerText.match(
+    /\b(?:for|on|at)\s+(.+?)(?:\s+(?:today|yesterday|tomorrow))?$/i
+  );
+
+  if (nameMatch) {
+    title = nameMatch[1].trim();
+  }
+
+  // If no "for/on/at" was found, try removing common voice words
+  if (!title) {
+    title = lowerText
+      .replace(
+        /(?:₹|rs\.?|rupees?|inr)?\s*\d+(?:\.\d+)?/gi,
+        ""
+      )
+      .replace(
+        /\b(spent|spend|paid|pay|bought|buy|received|earned|for|on|at)\b/gi,
+        ""
+      )
+      .trim();
+  }
+
+  // Clean transaction name
+  title = title
+    .replace(/[.,!?]/g, "")
+    .trim();
+
+  // Capitalize first letter
+  if (title) {
+    title =
+      title.charAt(0).toUpperCase() +
+      title.slice(1);
+  }
+
+  return {
+    amount,
+    category,
+    type: isIncome ? "Income" : "Expense",
+    title: title || "Voice Transaction",
+  };
+};
+
+  const handleVoiceInput = async () => {
+    try {
+      setError("");
+
+      const permission =
+        await SpeechRecognition.requestPermissions();
+
+      if (permission.speechRecognition !== "granted") {
+        setError(
+          "Microphone permission is required for voice input."
+        );
+        return;
+      }
+
+      setIsListening(true);
+
+      const result = await SpeechRecognition.start({
+        language: "en-IN",
+        maxResults: 1,
+        prompt: "Say your expense, for example: spent 450 rupees on groceries",
+        partialResults: false,
+        popup: true,
+      });
+
+      const spokenText = result.matches?.[0] || "";
+
+      setVoiceText(spokenText);
+
+      if (spokenText) {
+        const parsed = parseVoiceExpense(spokenText);
+
+        setForm((prev) => ({
+          ...prev,
+          title: parsed.title,
+          amount: parsed.amount,
+          category: parsed.category,
+          type: parsed.type,
+          description: spokenText,
+        }));
+      }
+    } catch (error) {
+      console.error("Voice input error:", error);
+
+      setError(
+        "Could not understand your voice. Please try again."
+      );
+    } finally {
+      setIsListening(false);
+    }
+  };
 
   const handleChange = (e) => {
     setForm({
@@ -78,7 +258,7 @@ export default function AddExpense() {
     } catch (error) {
       setError(
         error.response?.data?.message ||
-          "Failed to create transaction"
+        "Failed to create transaction"
       );
     } finally {
       setSaving(false);
@@ -88,10 +268,10 @@ export default function AddExpense() {
   const moneyPreview =
     Number(form.amount) > 0
       ? new Intl.NumberFormat("en-IN", {
-          style: "currency",
-          currency: "INR",
-          maximumFractionDigits: 2,
-        }).format(Number(form.amount))
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 2,
+      }).format(Number(form.amount))
       : "₹0.00";
 
   return (
@@ -206,11 +386,10 @@ export default function AddExpense() {
 
                 <button
                   type="button"
-                  className={`transaction-type-option ${
-                    form.type === "Expense"
-                      ? "active expense-option"
-                      : ""
-                  }`}
+                  className={`transaction-type-option ${form.type === "Expense"
+                    ? "active expense-option"
+                    : ""
+                    }`}
                   onClick={() =>
                     setForm({
                       ...form,
@@ -238,11 +417,10 @@ export default function AddExpense() {
 
                 <button
                   type="button"
-                  className={`transaction-type-option ${
-                    form.type === "Income"
-                      ? "active income-option"
-                      : ""
-                  }`}
+                  className={`transaction-type-option ${form.type === "Income"
+                    ? "active income-option"
+                    : ""
+                    }`}
                   onClick={() =>
                     setForm({
                       ...form,
@@ -288,7 +466,39 @@ export default function AddExpense() {
                   </small>
                 </div>
               </div>
+              <div className="voice-expense-box">
+                <button
+                  type="button"
+                  className={`voice-expense-button ${isListening ? "listening" : ""
+                    }`}
+                  onClick={handleVoiceInput}
+                  disabled={isListening || saving}
+                >
+                  <span className="voice-expense-icon">
+                    {isListening ? "🔴" : "🎤"}
+                  </span>
 
+                  <span>
+                    <strong>
+                      {isListening
+                        ? "Listening..."
+                        : "Add with your voice"}
+                    </strong>
+
+                    <small>
+                      {isListening
+                        ? "Say what you spent"
+                        : 'Try: "Spent ₹450 on groceries"'}
+                    </small>
+                  </span>
+                </button>
+
+                {voiceText && (
+                  <div className="voice-expense-result">
+                    <span>Heard:</span> {voiceText}
+                  </div>
+                )}
+              </div>
               <div className="add-form-grid">
 
                 <div className="add-form-group add-form-full">
@@ -384,11 +594,10 @@ export default function AddExpense() {
                   <button
                     type="button"
                     key={category}
-                    className={`category-picker-option ${
-                      form.category === category
-                        ? "selected"
-                        : ""
-                    }`}
+                    className={`category-picker-option ${form.category === category
+                      ? "selected"
+                      : ""
+                      }`}
                     onClick={() =>
                       setForm({
                         ...form,
@@ -468,11 +677,10 @@ export default function AddExpense() {
 
               <button
                 type="submit"
-                className={`add-save-button ${
-                  form.type === "Income"
-                    ? "save-income"
-                    : ""
-                }`}
+                className={`add-save-button ${form.type === "Income"
+                  ? "save-income"
+                  : ""
+                  }`}
                 disabled={saving}
               >
                 {saving ? (
@@ -519,11 +727,10 @@ export default function AddExpense() {
             </div>
 
             <div
-              className={`preview-amount ${
-                form.type === "Income"
-                  ? "preview-income"
-                  : "preview-expense"
-              }`}
+              className={`preview-amount ${form.type === "Income"
+                ? "preview-income"
+                : "preview-expense"
+                }`}
             >
               {form.type === "Income"
                 ? "+"
@@ -569,15 +776,15 @@ export default function AddExpense() {
                 <strong>
                   {form.date
                     ? new Date(
-                        `${form.date}T00:00:00`
-                      ).toLocaleDateString(
-                        "en-IN",
-                        {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        }
-                      )
+                      `${form.date}T00:00:00`
+                    ).toLocaleDateString(
+                      "en-IN",
+                      {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      }
+                    )
                     : "Select date"}
                 </strong>
               </div>
