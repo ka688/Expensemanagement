@@ -472,35 +472,134 @@ export default function AddExpense() {
     }
 
     // -----------------------------
-    // TRANSACTION NAME
+    // TRANSACTION NAME / MERCHANT
     // -----------------------------
     let title = "";
 
-    const firstUsefulLine = lines.find((line) => {
-      const lower = line.toLowerCase();
+    const ignoredMerchantPatterns = [
+      /tax\s*invoice/i,
+      /invoice/i,
+      /bill\s*(no|number)?/i,
+      /receipt/i,
+      /date/i,
+      /time/i,
+      /^ph[\s.:]/i,
+      /^phone/i,
+      /^mob/i,
+      /^mobile/i,
+      /^mcb/i,
+      /gst/i,
+      /gstin/i,
+      /pan\s*no/i,
+      /fssai/i,
+      /address/i,
+      /particulars/i,
+      /description/i,
+      /qty/i,
+      /quantity/i,
+      /rate/i,
+      /amount/i,
+      /subtotal/i,
+      /sub\s*total/i,
+      /food\s*total/i,
+      /grand\s*total/i,
+      /net\s*amount/i,
+      /total/i,
+      /cgst/i,
+      /sgst/i,
+      /discount/i,
+      /cash/i,
+      /change/i,
+      /thank\s*you/i,
+      /www\./i,
+      /\.com/i,
+      /\.in/i,
+    ];
 
+    const looksLikeAddress = (line) => {
       return (
-        line.length > 3 &&
-        !lower.includes("tax invoice") &&
-        !lower.startsWith("date") &&
-        !lower.startsWith("bill") &&
-        !lower.startsWith("ph") &&
-        !lower.startsWith("mcb") &&
-        !lower.includes("particulars") &&
-        !lower.includes("qty") &&
-        !lower.includes("rate") &&
-        !lower.includes("amount") &&
-        !lower.includes("subtotal") &&
-        !lower.includes("food total") &&
-        !lower.includes("sgst") &&
-        !lower.includes("cgst")
+        /\b\d{5,6}\b/.test(line) ||
+        /\broad\b/i.test(line) ||
+        /\blane\b/i.test(line) ||
+        /\bstreet\b/i.test(line) ||
+        /\bsector\b/i.test(line) ||
+        /\bcolony\b/i.test(line) ||
+        /\bmarket\b/i.test(line) ||
+        /\bnear\b/i.test(line) ||
+        /\bopp\b/i.test(line) ||
+        /\bopposite\b/i.test(line) ||
+        /\bplot\b/i.test(line) ||
+        /\bshop\s*no/i.test(line) ||
+        /\bpin\b/i.test(line)
       );
-    });
+    };
 
-    if (firstUsefulLine) {
-      title = firstUsefulLine;
+    const looksLikePhone = (line) => {
+      const digits = line.replace(/\D/g, "");
+      return digits.length >= 10;
+    };
+
+    const looksLikeDate = (line) => {
+      return /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/.test(line);
+    };
+
+    const looksLikeMoney = (line) => {
+      return (
+        /₹\s*[\d,.]+/.test(line) ||
+        /\b\d+(?:,\d{3})*(?:\.\d{2})\b/.test(line)
+      );
+    };
+
+    // Score the first few receipt lines.
+    // Merchant names usually appear before address/contact information.
+    const merchantCandidates = lines
+      .slice(0, 12)
+      .map((line, index) => {
+        let score = 100 - index * 5;
+
+        if (line.length < 3) score -= 50;
+        if (line.length > 45) score -= 25;
+
+        if (ignoredMerchantPatterns.some((pattern) => pattern.test(line))) {
+          score -= 100;
+        }
+
+        if (looksLikeAddress(line)) {
+          score -= 60;
+        }
+
+        if (looksLikePhone(line)) {
+          score -= 80;
+        }
+
+        if (looksLikeDate(line)) {
+          score -= 80;
+        }
+
+        if (looksLikeMoney(line)) {
+          score -= 80;
+        }
+
+        // Restaurant/business keywords make a line more likely to be the merchant.
+        if (
+          /\b(restaurant|hotel|dhaba|cafe|café|bakery|bistro|foods|food|dining|sweet|sweets|mart|store|shop|kitchen)\b/i.test(
+            line
+          )
+        ) {
+          score += 25;
+        }
+
+        return {
+          line,
+          score,
+        };
+      })
+      .filter((candidate) => candidate.score > 20)
+      .sort((a, b) => b.score - a.score);
+
+    if (merchantCandidates.length > 0) {
+      title = merchantCandidates[0].line;
     }
-
     return {
       title,
       amount,
