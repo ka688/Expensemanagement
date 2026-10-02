@@ -4,4 +4,6 @@
     <string name="title_activity_main">Expense Manager</string>
     <string name="package_name">com.flusheye.expensemanager</string>
     <string name="custom_url_scheme">com.flusheye.expensemanager</string>
+    <string name="shortcut_add_expense">Add expense</string>
+    <string name="shortcut_add_new_expense">Add a new expense</string>
 </resources>

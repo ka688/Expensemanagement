@@ -3,12 +3,14 @@ import {
   Routes,
   Route,
   Navigate,
+  useNavigate,
 } from "react-router-dom";
 
 import {
   useState,
 } from "react";
-
+import { useEffect } from "react";
+import { App as CapacitorApp } from "@capacitor/app";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
@@ -50,8 +52,42 @@ function ProtectedLayout({
 }
 
 function App() {
+  function DeepLinkHandler() {
+    const navigate = useNavigate();
+
+    useEffect(() => {
+      let listener;
+
+      const setupDeepLink = async () => {
+        listener = await CapacitorApp.addListener(
+          "appUrlOpen",
+          ({ url }) => {
+            if (url === "expensemanager://add-expense") {
+              navigate("/add-expense");
+            }
+          }
+        );
+
+        const launchUrl = await CapacitorApp.getLaunchUrl();
+
+        if (launchUrl?.url === "expensemanager://add-expense") {
+          navigate("/add-expense");
+        }
+      };
+
+      setupDeepLink();
+
+      return () => {
+        listener?.remove();
+      };
+    }, [navigate]);
+
+    return null;
+  }
+
   return (
     <BrowserRouter>
+      <DeepLinkHandler />
       <Routes>
         <Route
           path="/login"
@@ -119,14 +155,14 @@ function App() {
         />
 
         <Route
-           path="/budgets"
-           element={
-              <ProtectedRoute>
-                <ProtectedLayout>
-                  <Budgets />
-                </ProtectedLayout>
-              </ProtectedRoute>
-            }
+          path="/budgets"
+          element={
+            <ProtectedRoute>
+              <ProtectedLayout>
+                <Budgets />
+              </ProtectedLayout>
+            </ProtectedRoute>
+          }
         />
 
         <Route
@@ -160,7 +196,7 @@ function App() {
           }
         />
 
-         
+
       </Routes>
     </BrowserRouter>
   );
