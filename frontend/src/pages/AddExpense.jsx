@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { SpeechRecognition } from "@capacitor-community/speech-recognition";
+import { Script, TextRecognition, } from "@capacitor-mlkit/text-recognition";
+import { Camera, CameraResultType, CameraSource, } from "@capacitor/camera";
 
 const categories = [
   "Food",
@@ -49,130 +51,130 @@ export default function AddExpense() {
   const [voiceText, setVoiceText] = useState("");
 
   const parseVoiceExpense = (text) => {
-  const lowerText = text.toLowerCase().trim();
+    const lowerText = text.toLowerCase().trim();
 
-  // Find amount
-  const amountMatch = lowerText.match(
-    /(?:₹|rs\.?|rupees?|inr)?\s*(\d+(?:\.\d+)?)/
-  );
-
-  const amount = amountMatch
-    ? Number(amountMatch[1])
-    : "";
-
-  // Detect income
-  const isIncome =
-    /\b(received|earned|got paid|salary|income|credited)\b/i.test(
-      lowerText
+    // Find amount
+    const amountMatch = lowerText.match(
+      /(?:₹|rs\.?|rupees?|inr)?\s*(\d+(?:\.\d+)?)/
     );
 
-  // Detect category
-  let category = "Other";
+    const amount = amountMatch
+      ? Number(amountMatch[1])
+      : "";
 
-  if (
-    /\b(food|groceries|grocery|restaurant|lunch|dinner|breakfast)\b/i.test(
-      lowerText
-    )
-  ) {
-    category = "Food";
-  } else if (
-    /\b(shopping|clothes|clothing|dress|amazon|flipkart)\b/i.test(
-      lowerText
-    )
-  ) {
-    category = "Shopping";
-  } else if (
-    /\b(uber|ola|taxi|cab|bus|train|metro|petrol|fuel|transport)\b/i.test(
-      lowerText
-    )
-  ) {
-    category = "Transport";
-  } else if (
-    /\b(bill|electricity|water|rent|recharge|internet|wifi)\b/i.test(
-      lowerText
-    )
-  ) {
-    category = "Bills";
-  } else if (
-    /\b(movie|movies|netflix|game|games|entertainment)\b/i.test(
-      lowerText
-    )
-  ) {
-    category = "Entertainment";
-  } else if (
-    /\b(hospital|doctor|medicine|medical|health)\b/i.test(
-      lowerText
-    )
-  ) {
-    category = "Health";
-  } else if (
-    /\b(course|courses|school|college|education|books)\b/i.test(
-      lowerText
-    )
-  ) {
-    category = "Education";
-  } else if (
-    /\b(travel|hotel|flight|trip|vacation)\b/i.test(
-      lowerText
-    )
-  ) {
-    category = "Travel";
-  } else if (
-    /\b(salary|income|paycheck|earned)\b/i.test(
-      lowerText
-    )
-  ) {
-    category = "Salary";
-  } else if (
-    /\b(business|client)\b/i.test(lowerText)
-  ) {
-    category = "Business";
-  }
+    // Detect income
+    const isIncome =
+      /\b(received|earned|got paid|salary|income|credited)\b/i.test(
+        lowerText
+      );
 
-  // Extract transaction name
-  let title = "";
+    // Detect category
+    let category = "Other";
 
-  const nameMatch = lowerText.match(
-    /\b(?:for|on|at)\s+(.+?)(?:\s+(?:today|yesterday|tomorrow))?$/i
-  );
-
-  if (nameMatch) {
-    title = nameMatch[1].trim();
-  }
-
-  // If no "for/on/at" was found, try removing common voice words
-  if (!title) {
-    title = lowerText
-      .replace(
-        /(?:₹|rs\.?|rupees?|inr)?\s*\d+(?:\.\d+)?/gi,
-        ""
+    if (
+      /\b(food|groceries|grocery|restaurant|lunch|dinner|breakfast)\b/i.test(
+        lowerText
       )
-      .replace(
-        /\b(spent|spend|paid|pay|bought|buy|received|earned|for|on|at)\b/gi,
-        ""
+    ) {
+      category = "Food";
+    } else if (
+      /\b(shopping|clothes|clothing|dress|amazon|flipkart)\b/i.test(
+        lowerText
       )
+    ) {
+      category = "Shopping";
+    } else if (
+      /\b(uber|ola|taxi|cab|bus|train|metro|petrol|fuel|transport)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Transport";
+    } else if (
+      /\b(bill|electricity|water|rent|recharge|internet|wifi)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Bills";
+    } else if (
+      /\b(movie|movies|netflix|game|games|entertainment)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Entertainment";
+    } else if (
+      /\b(hospital|doctor|medicine|medical|health)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Health";
+    } else if (
+      /\b(course|courses|school|college|education|books)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Education";
+    } else if (
+      /\b(travel|hotel|flight|trip|vacation)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Travel";
+    } else if (
+      /\b(salary|income|paycheck|earned)\b/i.test(
+        lowerText
+      )
+    ) {
+      category = "Salary";
+    } else if (
+      /\b(business|client)\b/i.test(lowerText)
+    ) {
+      category = "Business";
+    }
+
+    // Extract transaction name
+    let title = "";
+
+    const nameMatch = lowerText.match(
+      /\b(?:for|on|at)\s+(.+?)(?:\s+(?:today|yesterday|tomorrow))?$/i
+    );
+
+    if (nameMatch) {
+      title = nameMatch[1].trim();
+    }
+
+    // If no "for/on/at" was found, try removing common voice words
+    if (!title) {
+      title = lowerText
+        .replace(
+          /(?:₹|rs\.?|rupees?|inr)?\s*\d+(?:\.\d+)?/gi,
+          ""
+        )
+        .replace(
+          /\b(spent|spend|paid|pay|bought|buy|received|earned|for|on|at)\b/gi,
+          ""
+        )
+        .trim();
+    }
+
+    // Clean transaction name
+    title = title
+      .replace(/[.,!?]/g, "")
       .trim();
-  }
 
-  // Clean transaction name
-  title = title
-    .replace(/[.,!?]/g, "")
-    .trim();
+    // Capitalize first letter
+    if (title) {
+      title =
+        title.charAt(0).toUpperCase() +
+        title.slice(1);
+    }
 
-  // Capitalize first letter
-  if (title) {
-    title =
-      title.charAt(0).toUpperCase() +
-      title.slice(1);
-  }
-
-  return {
-    amount,
-    category,
-    type: isIncome ? "Income" : "Expense",
-    title: title || "Voice Transaction",
+    return {
+      amount,
+      category,
+      type: isIncome ? "Income" : "Expense",
+      title: title || "Voice Transaction",
+    };
   };
-};
 
   const handleVoiceInput = async () => {
     try {
@@ -223,6 +225,290 @@ export default function AddExpense() {
     } finally {
       setIsListening(false);
     }
+  };
+
+  const handleReceiptScan = async () => {
+    try {
+      setError("");
+
+      const photo = await Camera.getPhoto({
+        quality: 90,
+        allowEditing: false,
+        resultType: CameraResultType.Uri,
+        source: CameraSource.Camera,
+      });
+
+      if (!photo.path) {
+        setError("Could not capture the receipt image.");
+        return;
+      }
+
+      console.log("Receipt image:", photo.path);
+
+      console.log("OCR PATH:", photo.path);
+
+      const result = await TextRecognition.processImage({
+        path: photo.path,
+        script: Script.Latin,
+      });
+
+      console.log("OCR RESULT:", result);
+      const recognizedText = result.text || "";
+
+      console.log("OCR RESULT:", recognizedText);
+
+      if (!recognizedText.trim()) {
+        setError(
+          "No text was detected. Please take a clearer photo of the receipt."
+        );
+        return;
+      }
+
+      const parsed = parseReceiptText(recognizedText);
+
+      console.log("PARSED RECEIPT:", parsed);
+
+      setForm((prev) => ({
+        ...prev,
+        title: parsed.title || prev.title,
+        amount: parsed.amount || prev.amount,
+        category: parsed.category || prev.category,
+        date: parsed.date || prev.date,
+        type:
+          prev.type === "Expense" || prev.type === "Income"
+            ? "Expense"
+            : "expense",
+        description: parsed.description,
+      }));
+    } catch (error) {
+      console.error("========== RECEIPT SCAN ERROR ==========");
+      console.error("Error:", error);
+      console.error("Message:", error?.message);
+      console.error("Code:", error?.code);
+      console.error("Stack:", error?.stack);
+      console.error("========================================");
+
+      setError(
+        `Receipt scan failed: ${error?.message || "Unknown error"}`
+      );
+    }
+  };
+
+  const parseReceiptText = (text) => {
+    const lines = text
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    // -----------------------------
+    // AMOUNT
+    // -----------------------------
+    let amount = "";
+
+    const cleanAmount = (value) => {
+      if (!value) return "";
+
+      return value
+        .replace(/₹/g, "")
+        .replace(/,/g, "")
+        .replace(/\s/g, "")
+        .trim();
+    };
+
+    // Convert OCR text into lines
+    const receiptLines = text
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    // -----------------------------------------
+    // 1. Find FINAL TOTAL / GRAND TOTAL / NET
+    // -----------------------------------------
+    const finalTotalKeywords = [
+      "grand total",
+      "net amount",
+      "amount payable",
+      "total amount",
+      "final total",
+      "total",
+    ];
+
+    for (let i = receiptLines.length - 1; i >= 0; i--) {
+      const line = receiptLines[i].toLowerCase();
+
+      const isFinalTotalLine = finalTotalKeywords.some((keyword) =>
+        line.includes(keyword)
+      );
+
+      if (!isFinalTotalLine) continue;
+
+      // Amount on the same line
+      const sameLineMatch = receiptLines[i].match(
+        /₹?\s*([\d,]+(?:\.\d{1,2})?)/
+      );
+
+      if (sameLineMatch) {
+        amount = cleanAmount(sameLineMatch[1]);
+        break;
+      }
+
+      // Amount may be on the NEXT line
+      if (receiptLines[i + 1]) {
+        const nextLineMatch = receiptLines[i + 1].match(
+          /^₹?\s*([\d,]+(?:\.\d{1,2})?)\s*$/
+        );
+
+        if (nextLineMatch) {
+          amount = cleanAmount(nextLineMatch[1]);
+          break;
+        }
+      }
+    }
+
+    // -----------------------------------------
+    // 2. Look for "Total: ₹" followed by amount
+    // -----------------------------------------
+    if (!amount) {
+      const totalMatch = text.match(
+        /(?:total|grand\s*total|final\s*total)\s*[:\-]?\s*₹?\s*(?:\n|\r\n|\s)*([\d,]+(?:\.\d{1,2})?)/i
+      );
+
+      if (totalMatch) {
+        amount = cleanAmount(totalMatch[1]);
+      }
+    }
+
+    // -----------------------------------------
+    // 3. Final fallback:
+    //    use the LAST decimal number
+    // -----------------------------------------
+    if (!amount) {
+      const decimalAmounts = text.match(
+        /\b\d+\.\d{2}\b/g
+      );
+
+      if (decimalAmounts?.length) {
+        amount = cleanAmount(
+          decimalAmounts[decimalAmounts.length - 1]
+        );
+      }
+    }
+
+    // -----------------------------
+    // DATE
+    // -----------------------------
+    let date = "";
+
+    const dateMatch = text.match(
+      /(?:date\s*[:\-]?\s*)?(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/i
+    );
+
+    if (dateMatch) {
+      let [, day, month, year] = dateMatch;
+
+      if (year.length === 2) {
+        year = `20${year}`;
+      }
+
+      date = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    }
+
+    // -----------------------------
+    // CATEGORY
+    // -----------------------------
+    let category = "Other";
+
+    const foodKeywords = [
+      "food",
+      "restaurant",
+      "dhaba",
+      "hotel",
+      "tandoori",
+      "roti",
+      "paneer",
+      "rice",
+      "dal",
+      "chicken",
+      "biryani",
+      "snacks",
+      "soft drinks",
+      "soda",
+      "mineral water",
+    ];
+
+    const transportKeywords = [
+      "uber",
+      "ola",
+      "taxi",
+      "cab",
+      "fuel",
+      "petrol",
+      "diesel",
+      "parking",
+    ];
+
+    const shoppingKeywords = [
+      "shopping",
+      "mart",
+      "supermarket",
+      "store",
+      "clothing",
+      "shirt",
+      "shoes",
+    ];
+
+    const lowerText = text.toLowerCase();
+
+    if (foodKeywords.some((keyword) => lowerText.includes(keyword))) {
+      category = "Food";
+    } else if (
+      transportKeywords.some((keyword) => lowerText.includes(keyword))
+    ) {
+      category = "Transport";
+    } else if (
+      shoppingKeywords.some((keyword) => lowerText.includes(keyword))
+    ) {
+      category = "Shopping";
+    }
+
+    // -----------------------------
+    // TRANSACTION NAME
+    // -----------------------------
+    let title = "";
+
+    const firstUsefulLine = lines.find((line) => {
+      const lower = line.toLowerCase();
+
+      return (
+        line.length > 3 &&
+        !lower.includes("tax invoice") &&
+        !lower.startsWith("date") &&
+        !lower.startsWith("bill") &&
+        !lower.startsWith("ph") &&
+        !lower.startsWith("mcb") &&
+        !lower.includes("particulars") &&
+        !lower.includes("qty") &&
+        !lower.includes("rate") &&
+        !lower.includes("amount") &&
+        !lower.includes("subtotal") &&
+        !lower.includes("food total") &&
+        !lower.includes("sgst") &&
+        !lower.includes("cgst")
+      );
+    });
+
+    if (firstUsefulLine) {
+      title = firstUsefulLine;
+    }
+
+    return {
+      title,
+      amount,
+      category,
+      date,
+      description: text,
+      type: "expense",
+    };
   };
 
   const handleChange = (e) => {
@@ -451,8 +737,8 @@ export default function AddExpense() {
             </div>
 
             {/* ===============================================
-                BASIC DETAILS
-            =============================================== */}
+    BASIC DETAILS
+=============================================== */}
 
             <div className="add-form-section">
 
@@ -466,7 +752,11 @@ export default function AddExpense() {
                   </small>
                 </div>
               </div>
+
+              {/* VOICE + RECEIPT */}
               <div className="voice-expense-box">
+
+                {/* VOICE BUTTON */}
                 <button
                   type="button"
                   className={`voice-expense-button ${isListening ? "listening" : ""
@@ -493,12 +783,36 @@ export default function AddExpense() {
                   </span>
                 </button>
 
+                {/* RECEIPT SCANNER */}
+                <button
+                  type="button"
+                  className="receipt-scan-button"
+                  onClick={handleReceiptScan}
+                  disabled={saving}
+                >
+                  <span className="receipt-scan-icon">
+                    📷
+                  </span>
+
+                  <span>
+                    <strong>Scan Receipt</strong>
+
+                    <small>
+                      Take a photo and extract receipt details
+                    </small>
+                  </span>
+                </button>
+
+                {/* VOICE RESULT */}
                 {voiceText && (
                   <div className="voice-expense-result">
                     <span>Heard:</span> {voiceText}
                   </div>
                 )}
+
               </div>
+
+              {/* INPUT FIELDS */}
               <div className="add-form-grid">
 
                 <div className="add-form-group add-form-full">
@@ -819,6 +1133,6 @@ export default function AddExpense() {
 
       </div>
 
-    </div>
+    </div >
   );
 }

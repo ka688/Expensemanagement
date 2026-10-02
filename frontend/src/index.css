@@ -12126,3 +12126,188 @@ tbody tr:last-child td {
   font-weight: 700;
   color: #111827;
 }
+
+
+/* ================================
+   ADD EXPENSE - VOICE + RECEIPT
+================================ */
+
+.voice-expense-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+/* Shared button styling */
+.receipt-scan-button,
+.voice-expense-button {
+  width: 100%;
+  min-height: 78px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px 18px;
+
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+
+  background: linear-gradient(
+    135deg,
+    #ffffff,
+    #f8fafc
+  );
+
+  cursor: pointer;
+  text-align: left;
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+/* Hover */
+.receipt-scan-button:hover,
+.voice-expense-button:hover {
+  transform: translateY(-2px);
+
+  border-color: rgba(15, 23, 42, 0.16);
+
+  box-shadow:
+    0 10px 25px rgba(15, 23, 42, 0.08);
+}
+
+/* Disabled */
+.receipt-scan-button:disabled,
+.voice-expense-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Receipt icon */
+.receipt-scan-icon {
+  width: 46px;
+  height: 46px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 14px;
+
+  background: #f1f5f9;
+
+  font-size: 22px;
+
+  flex-shrink: 0;
+}
+
+/* Voice icon */
+.voice-expense-icon {
+  width: 46px;
+  height: 46px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 14px;
+
+  background: #f1f5f9;
+
+  font-size: 21px;
+
+  flex-shrink: 0;
+}
+
+/* Text */
+.receipt-scan-button strong,
+.voice-expense-button strong {
+  display: block;
+
+  margin-bottom: 4px;
+
+  font-size: 15px;
+  font-weight: 700;
+
+  color: #111827;
+}
+
+.receipt-scan-button small,
+.voice-expense-button small {
+  display: block;
+
+  font-size: 12px;
+  line-height: 1.45;
+
+  color: #6b7280;
+}
+
+/* Listening state */
+.voice-expense-button.listening {
+  border-color: #ef4444;
+
+  background:
+    linear-gradient(
+      135deg,
+      #fff7f7,
+      #ffffff
+    );
+
+  box-shadow:
+    0 0 0 4px rgba(239, 68, 68, 0.08);
+}
+
+/* Receipt box */
+.receipt-scan-box {
+  width: 100%;
+}
+
+/* Voice result */
+.voice-expense-result {
+  padding: 11px 14px;
+
+  border-radius: 12px;
+
+  background: #f8fafc;
+
+  border: 1px solid rgba(15, 23, 42, 0.06);
+
+  font-size: 13px;
+
+  color: #4b5563;
+}
+
+.voice-expense-result span {
+  font-weight: 700;
+  color: #111827;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .receipt-scan-button,
+  .voice-expense-button {
+    min-height: 72px;
+    padding: 13px 14px;
+    gap: 12px;
+  }
+
+  .receipt-scan-icon,
+  .voice-expense-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+  }
+
+  .receipt-scan-button strong,
+  .voice-expense-button strong {
+    font-size: 14px;
+  }
+
+  .receipt-scan-button small,
+  .voice-expense-button small {
+    font-size: 11px;
+  }
+}
