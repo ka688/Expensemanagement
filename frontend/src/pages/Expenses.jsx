@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../services/api";
 
@@ -43,11 +43,15 @@ export default function Expenses() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  useEffect(() => {
-    loadTransactions();
-  }, [category, type, sort, startDate, endDate]);
+  // Load transactions whenever filters change.
 
-  const loadTransactions = async () => {
+  // Load transactions when filters change.
+
+
+
+
+
+  const loadTransactions = useCallback(async () => {
     setLoading(true);
 
     try {
@@ -75,11 +79,38 @@ export default function Expenses() {
 
       setTransactions(response.data);
     } catch (error) {
-      console.error(error);
+      console.error("FAILED TO LOAD TRANSACTIONS:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [category, type, sort, search, startDate, endDate]);
+
+
+
+  useEffect(() => {
+    const refreshTransactions = () => {
+      console.log("REFRESHING TRANSACTIONS");
+      loadTransactions();
+    };
+
+    console.log("EXPENSES PAGE LISTENER REGISTERED");
+
+    window.addEventListener(
+      "expensesUpdated",
+      refreshTransactions
+    );
+
+    // Load transactions when the page opens.
+    refreshTransactions();
+
+    return () => {
+      window.removeEventListener(
+        "expensesUpdated",
+        refreshTransactions
+      );
+    };
+  }, [loadTransactions]);
+
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -102,7 +133,7 @@ export default function Expenses() {
     } catch (error) {
       alert(
         error.response?.data?.message ||
-          "Delete failed"
+        "Delete failed"
       );
     }
   };
@@ -265,11 +296,10 @@ export default function Expenses() {
         </div>
 
         <div
-          className={`transaction-summary-card ${
-            balance >= 0
-              ? "summary-balance"
-              : "summary-negative"
-          }`}
+          className={`transaction-summary-card ${balance >= 0
+            ? "summary-balance"
+            : "summary-negative"
+            }`}
         >
 
           <div className="transaction-summary-icon">
@@ -352,7 +382,7 @@ export default function Expenses() {
                 {category === "All"
                   ? "◈"
                   : categoryIcons[category] ||
-                    "✨"}
+                  "✨"}
               </span>
 
               <select
@@ -523,11 +553,10 @@ export default function Expenses() {
             <p>
               {transactions.length === 0
                 ? "No matching transactions"
-                : `${transactions.length} transaction${
-                    transactions.length === 1
-                      ? ""
-                      : "s"
-                  } in this view`}
+                : `${transactions.length} transaction${transactions.length === 1
+                  ? ""
+                  : "s"
+                } in this view`}
             </p>
           </div>
 
@@ -606,7 +635,7 @@ export default function Expenses() {
 
                 const icon =
                   categoryIcons[
-                    transaction.category
+                  transaction.category
                   ] || "✨";
 
                 return (
@@ -616,11 +645,10 @@ export default function Expenses() {
                   >
 
                     <div
-                      className={`premium-transaction-category ${
-                        isIncome
-                          ? "transaction-category-income"
-                          : "transaction-category-expense"
-                      }`}
+                      className={`premium-transaction-category ${isIncome
+                        ? "transaction-category-income"
+                        : "transaction-category-expense"
+                        }`}
                     >
                       {icon}
                     </div>
@@ -661,11 +689,10 @@ export default function Expenses() {
                         </span>
 
                         <span
-                          className={`premium-type-badge ${
-                            isIncome
-                              ? "premium-type-income"
-                              : "premium-type-expense"
-                          }`}
+                          className={`premium-type-badge ${isIncome
+                            ? "premium-type-income"
+                            : "premium-type-expense"
+                            }`}
                         >
                           {isIncome
                             ? "Income"

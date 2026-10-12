@@ -1,0 +1,18 @@
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+android/.gradle/
+android/**/build/
+
+# Local machine files
+.DS_Store
+Thumbs.db
